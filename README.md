@@ -46,7 +46,6 @@ use easyeda2kicad_rs::{importer, converter, file_writer};
 
 - `src/` — Core Rust library code (importers, converters, writers)
 - `examples/` — Example usage and test conversions
-- `example_lib/` — Example output files (footprints, symbols, 3D models)
 
 ## Status
 
