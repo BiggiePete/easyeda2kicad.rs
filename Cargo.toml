@@ -8,7 +8,7 @@ repository = "https://github.com/BiggiePete/easyeda2kicad.rs"
 authors = ["biggiePete"]
 readme = "README.md"
 keywords = ["EasyEDA", "KiCad", "conversion", "PCB"]
-categories = ["Development", "Libraries"]
+categories = ["api-bindings", "development-tools"]
 license = "MIT"
 
 exclude = ["example_lib"]
@@ -21,5 +21,5 @@ tokio = { version = "1", features = ["full"] }
 thiserror = "1.0"
 log = "0.4"
 regex = "1"
-glam = "0.24"                                       # For vector math, useful in conversions
+glam = "0.24"
 bytes = "1.10.1"
