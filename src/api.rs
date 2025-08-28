@@ -44,7 +44,7 @@ impl EasyedaApi {
                 Error::MissingData("API response missing 'result' field".to_string())
             })
         } else {
-            let msg = res
+            let _msg = res
                 .message
                 .unwrap_or_else(|| "Unknown API error".to_string());
             Err(Error::MissingData("API Error".to_string()))

@@ -1,10 +1,6 @@
 // src/converter.rs
 
-use crate::{
-    easyeda_models::*,
-    error::{Error, Result},
-    kicad_models::*,
-};
+use crate::{easyeda_models::*, error::Result, kicad_models::*};
 use glam::Vec3;
 
 /// Converts an EasyEDA symbol to a KiCad symbol. (Still a stub)
