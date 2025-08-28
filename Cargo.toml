@@ -9,7 +9,7 @@ authors = ["biggiePete"]
 readme = "README.md"
 keywords = ["EasyEDA", "KiCad", "conversion", "PCB"]
 categories = ["Development", "Libraries"]
-license = "GNU General Public License version 3"
+license = "MIT"
 
 exclude = ["example_lib"]
 
