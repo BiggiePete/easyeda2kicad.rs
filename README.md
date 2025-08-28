@@ -1,7 +1,5 @@
 # easyeda2kicad.rs
 
-# easyeda2kicad.rs
-
 **A Rust library for converting EasyEDA projects to KiCad formats**
 
 ## Overview
