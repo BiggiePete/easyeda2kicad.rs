@@ -88,3 +88,6 @@ pub async fn import_component(lcsc_id: &str, output_dir: &Path) -> Result<()> {
     println!("\nImport complete. Files are located in: {:?}", output_dir);
     Ok(())
 }
+
+// TODO:
+//  add function that allows for downloading all the data, and it just returns a result with the data, does NOT automatically write to a file
