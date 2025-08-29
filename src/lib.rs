@@ -11,6 +11,38 @@ pub mod kicad_models;
 use crate::error::Result;
 use std::path::Path;
 
+/// Imports a component from EasyEDA's library and converts it to KiCad format.
+///
+/// This function performs a complete import of an EasyEDA component, including:
+/// - Symbol (schematic representation)
+/// - Footprint (PCB layout)
+/// - 3D model (if available)
+///
+/// All files are generated in KiCad's format and saved to the specified output directory.
+/// The function will create the necessary directory structure for KiCad libraries.
+///
+/// # Arguments
+///
+/// * `lcsc_id` - The LCSC part number of the component to import (e.g., "C12345")
+/// * `output_dir` - Directory where the KiCad library files will be created
+///
+/// # Returns
+///
+/// * `Result<()>` - Ok(()) if the import was successful, or an Error if any step failed
+///
+/// # Examples
+///
+/// ```no_run
+/// use std::path::Path;
+/// use easyeda2kicad_rs::import_component;
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let output_dir = Path::new("kicad_lib");
+///     import_component("C12345", output_dir).await?;
+///     Ok(())
+/// }
+/// ```
 pub async fn import_component(lcsc_id: &str, output_dir: &Path) -> Result<()> {
     println!("Fetching data for LCSC ID: {}", lcsc_id);
     let api = api::EasyedaApi::new();
