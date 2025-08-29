@@ -8,14 +8,17 @@ pub mod file_writer;
 pub mod importer;
 pub mod kicad_models;
 
-use crate::error::Result;
+use crate::{
+    error::Result,
+    kicad_models::{KiFootprint, KiSymbol},
+};
 use std::path::Path;
 
 /// Imports a component from EasyEDA's library and converts it to KiCad format.
 ///
 /// This function performs a complete import of an EasyEDA component, including:
 /// - Symbol (schematic representation)
-/// - Footprint (PCB layout)
+/// - Footprint (PCB layo)
 /// - 3D model (if available)
 ///
 /// All files are generated in KiCad's format and saved to the specified output directory.
@@ -89,5 +92,68 @@ pub async fn import_component(lcsc_id: &str, output_dir: &Path) -> Result<()> {
     Ok(())
 }
 
-// TODO:
-//  add function that allows for downloading all the data, and it just returns a result with the data, does NOT automatically write to a file
+/// Fetches and converts a component from EasyEDA to KiCad data structures.
+///
+/// This function retrieves the component data for the given LCSC part number from EasyEDA,
+/// converts the symbol, footprint, and (optionally) the 3D model to KiCad's internal data structures,
+/// and returns them as a tuple. No files are written to disk; this function is intended for advanced
+/// use cases where you want to handle the generated data programmatically.
+///
+/// # Arguments
+///
+/// * `lcsc_id` - The LCSC part number of the component to import (e.g., "C12345")
+///
+/// # Returns
+///
+/// * `Result<(KiSymbol, KiFootprint, Option<Ki3dModel>)>` -
+///   - `KiSymbol`: The converted KiCad symbol
+///   - `KiFootprint`: The converted KiCad footprint
+///   - `Option<Ki3dModel>`: The converted 3D model, if available
+///
+/// # Example
+///
+/// ```no_run
+/// use easyeda2kicad_rs::import_component_data;
+/// #[tokio::main]
+/// async fn main() {
+///     let (symbol, footprint, model) = import_component_data("C12345").await.unwrap();
+///     // Use symbol, footprint, model as needed
+/// }
+/// ```
+pub async fn import_component_data(
+    lcsc_id: &str,
+) -> Result<(KiSymbol, KiFootprint, Option<kicad_models::Ki3dModel>)> {
+    println!("Fetching data for LCSC ID: {}", lcsc_id);
+    let api = api::EasyedaApi::new();
+
+    let cad_data = api.get_cad_data_of_component(lcsc_id).await?;
+
+    // --- SYMBOL ---
+    let ee_symbol = importer::import_symbol(&cad_data)?;
+    let ki_symbol = converter::convert_symbol(ee_symbol)?;
+    let ee_footprint = importer::import_footprint(&cad_data)?;
+
+    println!("Successfully generated symbol: {}", ki_symbol.name);
+
+    // --- 3D MODEL ---
+    let ki_model = if let Some(mut ee_model_info) = importer::import_3d_model_info(&cad_data)? {
+        println!("Found 3D model: {}", ee_model_info.name);
+        let (raw_obj, step) = tokio::join!(
+            api.get_raw_3d_model_obj(&ee_model_info.uuid),
+            api.get_step_3d_model(&ee_model_info.uuid)
+        );
+        ee_model_info.raw_obj = raw_obj.ok();
+        ee_model_info.step = step.ok();
+        let model = converter::convert_3d_model(ee_model_info)?;
+        println!("Successfully generated 3D model: {}", model.name);
+        Some(model)
+    } else {
+        println!("No 3D model found for this component.");
+        None
+    };
+
+    // --- FOOTPRINT ---
+    // Pass the 3D model data to the footprint converter
+    let ki_footprint = converter::convert_footprint(ee_footprint, ki_model.clone())?;
+    Ok((ki_symbol, ki_footprint, ki_model))
+}

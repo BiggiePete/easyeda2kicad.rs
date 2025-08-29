@@ -5,7 +5,7 @@ use std::fmt::Write;
 
 // --- 3D Model Structs ---
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Ki3dModel {
     pub name: String,
     pub wrl_data: Option<String>,
