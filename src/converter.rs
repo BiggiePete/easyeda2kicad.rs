@@ -6,31 +6,77 @@ use glam::Vec3;
 /// Converts an EasyEDA symbol to a KiCad symbol. (Still a stub)
 pub fn convert_symbol(ee_symbol: EeSymbol) -> Result<KiSymbol> {
     let (bbox_x, bbox_y) = ee_symbol.bbox;
-    let mut ki_pins = Vec::new();
+    let mut raw_pins = Vec::new();
+    let mut raw_rects = Vec::new();
 
-    for ee_pin in ee_symbol.pins {
-        ki_pins.push(KiSymbolPin {
-            name: ee_pin.name,
-            number: ee_pin.number,
-            pin_type: map_pin_type(&ee_pin.pin_type),
-            length: ee_to_mm(ee_pin.pin_length),
-            pos: (
-                ee_to_mm(ee_pin.pos_x - bbox_x),
-                ee_to_mm(-(ee_pin.pos_y - bbox_y)),
-            ),
-            rotation: (ee_pin.rotation + 180) % 360, // KiCad rotation is often different
-        });
+    for ee_pin in &ee_symbol.pins {
+        raw_pins.push((
+            ee_to_mm(ee_pin.pos_x - bbox_x),
+            ee_to_mm(-(ee_pin.pos_y - bbox_y)),
+        ));
     }
-
-    let mut ki_rects = Vec::new();
-    for ee_rect in ee_symbol.rectangles {
+    for ee_rect in &ee_symbol.rectangles {
         let start_x = ee_to_mm(ee_rect.x - bbox_x);
         let start_y = ee_to_mm(-(ee_rect.y - bbox_y));
         let end_x = start_x + ee_to_mm(ee_rect.width);
         let end_y = start_y - ee_to_mm(ee_rect.height);
+        raw_rects.push(((start_x, start_y), (end_x, end_y)));
+    }
+
+    // Calculate bounding box
+    let mut min_x = f32::MAX;
+    let mut max_x = f32::MIN;
+    let mut min_y = f32::MAX;
+    let mut max_y = f32::MIN;
+    for &(x, y) in &raw_pins {
+        if x < min_x {
+            min_x = x;
+        }
+        if x > max_x {
+            max_x = x;
+        }
+        if y < min_y {
+            min_y = y;
+        }
+        if y > max_y {
+            max_y = y;
+        }
+    }
+    for &((sx, sy), (ex, ey)) in &raw_rects {
+        for &(x, y) in &[(sx, sy), (ex, ey)] {
+            if x < min_x {
+                min_x = x;
+            }
+            if x > max_x {
+                max_x = x;
+            }
+            if y < min_y {
+                min_y = y;
+            }
+            if y > max_y {
+                max_y = y;
+            }
+        }
+    }
+    let center_x = (min_x + max_x) / 2.0;
+    let center_y = (min_y + max_y) / 2.0;
+
+    let mut ki_pins = Vec::new();
+    for (ee_pin, &(x, y)) in ee_symbol.pins.iter().zip(raw_pins.iter()) {
+        ki_pins.push(KiSymbolPin {
+            name: ee_pin.name.clone(),
+            number: ee_pin.number.clone(),
+            pin_type: map_pin_type(&ee_pin.pin_type),
+            length: ee_to_mm(ee_pin.pin_length),
+            pos: (x - center_x, y - center_y),
+            rotation: (ee_pin.rotation + 180) % 360,
+        });
+    }
+    let mut ki_rects = Vec::new();
+    for (ee_rect, &((sx, sy), (ex, ey))) in ee_symbol.rectangles.iter().zip(raw_rects.iter()) {
         ki_rects.push(KiSymbolRect {
-            start: (start_x, start_y),
-            end: (end_x, end_y),
+            start: (sx - center_x, sy - center_y),
+            end: (ex - center_x, ey - center_y),
         });
     }
 
@@ -103,25 +149,51 @@ pub fn convert_footprint(
     let mut ki_pads = Vec::new();
     let (bbox_x, bbox_y) = ee_footprint.bbox;
 
-    for ee_pad in ee_footprint.pads {
-        let is_smd = ee_pad.hole_radius == 0.0;
+    let mut raw_pad_pos = Vec::new();
+    for ee_pad in &ee_footprint.pads {
+        raw_pad_pos.push((
+            ee_to_mm(ee_pad.center_x - bbox_x),
+            ee_to_mm(-(ee_pad.center_y - bbox_y)),
+        ));
+    }
+    let mut raw_text_pos = Vec::new();
+    for ee_text in &ee_footprint.texts {
+        raw_text_pos.push((
+            ee_to_mm(ee_text.center_x - bbox_x),
+            ee_to_mm(-(ee_text.center_y - bbox_y)),
+        ));
+    }
+    // Calculate center
+    let mut sum_x = 0.0;
+    let mut sum_y = 0.0;
+    let mut count = 0.0;
+    for &(x, y) in &raw_pad_pos {
+        sum_x += x;
+        sum_y += y;
+        count += 1.0;
+    }
+    for &(x, y) in &raw_text_pos {
+        sum_x += x;
+        sum_y += y;
+        count += 1.0;
+    }
+    let center_x = if count > 0.0 { sum_x / count } else { 0.0 };
+    let center_y = if count > 0.0 { sum_y / count } else { 0.0 };
 
+    for (ee_pad, &(x, y)) in ee_footprint.pads.iter().zip(raw_pad_pos.iter()) {
+        let is_smd = ee_pad.hole_radius == 0.0;
         ki_pads.push(FpPad {
-            number: ee_pad.number,
+            number: ee_pad.number.clone(),
             pad_type: if is_smd {
                 "smd".to_string()
             } else {
                 "thru_hole".to_string()
             },
             shape: map_shape(&ee_pad.shape),
-            // Shift position relative to the bounding box origin and convert units
-            pos: (
-                ee_to_mm(ee_pad.center_x - bbox_x),
-                ee_to_mm(-(ee_pad.center_y - bbox_y)),
-            ),
+            pos: (x - center_x, y - center_y),
             size: (ee_to_mm(ee_pad.width), ee_to_mm(ee_pad.height)),
             layers: map_layer(ee_pad.layer_id, is_smd),
-            rotation: -ee_pad.rotation, // KiCad rotation is often inverted
+            rotation: -ee_pad.rotation,
         });
     }
 
@@ -129,19 +201,16 @@ pub fn convert_footprint(
     // For now we will ignore them, but the parsing is done.
 
     let mut ki_texts = Vec::new();
-    for ee_text in ee_footprint.texts {
+    for (ee_text, &(x, y)) in ee_footprint.texts.iter().zip(raw_text_pos.iter()) {
         let (text_type, text) = match ee_text.text_type.as_str() {
             "P" => ("value".to_string(), ee_footprint.info.name.clone()),
             "N" => ("reference".to_string(), "REF**".to_string()),
-            _ => ("user".to_string(), ee_text.text),
+            _ => ("user".to_string(), ee_text.text.clone()),
         };
         ki_texts.push(FpText {
             text_type,
             text,
-            pos: (
-                ee_to_mm(ee_text.center_x - bbox_x),
-                ee_to_mm(-(ee_text.center_y - bbox_y)),
-            ),
+            pos: (x - center_x, y - center_y),
             layer: map_layer(ee_text.layer_id, true)
                 .get(0)
                 .unwrap_or(&"F.Fab".to_string())
