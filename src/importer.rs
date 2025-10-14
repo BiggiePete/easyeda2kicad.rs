@@ -54,7 +54,7 @@ pub fn import_symbol(data: &Value) -> Result<EeSymbol> {
 
                     pins.push(EeSymbolPin {
                         number: settings[3].to_string(),
-                        name: name_data[5].to_string(),
+                        name: name_data[4].to_string(),
                         pos_x: settings[4].parse().unwrap_or(0.0),
                         pos_y: settings[5].parse().unwrap_or(0.0),
                         rotation: settings[6].parse().unwrap_or(0),

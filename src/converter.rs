@@ -46,7 +46,7 @@ pub fn convert_symbol(ee_symbol: EeSymbol) -> Result<KiSymbol> {
 
 /// Converts an EasyEDA footprint to a KiCad footprint. (Now implemented)
 fn ee_to_mm(val: f32) -> f32 {
-    val * 0.0254
+    val * 0.254
 }
 
 /// Maps EasyEDA layer IDs to KiCad layer names.

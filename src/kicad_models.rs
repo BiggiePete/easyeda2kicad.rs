@@ -110,7 +110,7 @@ impl KiSymbol {
         writeln!(&mut out, "  (property \"Datasheet\" \"{}\" (id 3) (at 0 0 0) (effects (font (size 1.27 1.27)) hide))", self.datasheet).unwrap();
 
         // --- Symbol Graphics ---
-        writeln!(&mut out, "  (symbol \"{}_1\"", self.name).unwrap();
+        writeln!(&mut out, "  (symbol \"{}_1_1\"", self.name).unwrap();
 
         for rect in &self.rectangles {
             writeln!(&mut out, "    (rectangle (start {} {}) (end {} {}) (stroke (width 0.254) (type default) (color 0 0 0 0)) (fill (type background)))",
