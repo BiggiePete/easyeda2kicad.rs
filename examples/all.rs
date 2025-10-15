@@ -14,6 +14,7 @@ async fn main() {
         "C42371095",
         "C5452091",
         "C209907",
+        "C8270",
     ]; // Example LCSC IDs
 
     let start_time = Instant::now();

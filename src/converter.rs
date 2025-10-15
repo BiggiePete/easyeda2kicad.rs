@@ -97,19 +97,18 @@ fn ee_to_mm(val: f32) -> f32 {
 
 /// Maps EasyEDA layer IDs to KiCad layer names.
 fn map_layer(layer_id: i32, is_smd: bool) -> Vec<String> {
+    // For through-hole pads, always use *.Cu and *.Mask regardless of layer_id
+    if !is_smd {
+        return vec!["*.Cu".to_string(), "*.Mask".to_string()];
+    }
+
+    // For SMD pads, use the appropriate layer mapping
     match layer_id {
-        1 => {
-            // Top Layer
-            if is_smd {
-                vec![
-                    "F.Cu".to_string(),
-                    "F.Paste".to_string(),
-                    "F.Mask".to_string(),
-                ]
-            } else {
-                vec!["*.Cu".to_string(), "*.Mask".to_string()] // Through-hole
-            }
-        }
+        1 => vec![
+            "F.Cu".to_string(),
+            "F.Paste".to_string(),
+            "F.Mask".to_string(),
+        ], // Top Layer
         2 => vec![
             "B.Cu".to_string(),
             "B.Paste".to_string(),
@@ -180,10 +179,16 @@ pub fn convert_footprint(
     let center_x = if count > 0.0 { sum_x / count } else { 0.0 };
     let center_y = if count > 0.0 { sum_y / count } else { 0.0 };
 
-    for (ee_pad, &(x, y)) in ee_footprint.pads.iter().zip(raw_pad_pos.iter()) {
+    for (idx, (ee_pad, &(x, y))) in ee_footprint.pads.iter().zip(raw_pad_pos.iter()).enumerate() {
         let is_smd = ee_pad.hole_radius == 0.0;
+        // Use provided number, but fallback to a deterministic index-based number if empty
+        let pad_number = if ee_pad.number.trim().is_empty() {
+            (idx + 1).to_string()
+        } else {
+            ee_pad.number.clone()
+        };
         ki_pads.push(FpPad {
-            number: ee_pad.number.clone(),
+            number: pad_number,
             pad_type: if is_smd {
                 "smd".to_string()
             } else {
@@ -194,6 +199,12 @@ pub fn convert_footprint(
             size: (ee_to_mm(ee_pad.width), ee_to_mm(ee_pad.height)),
             layers: map_layer(ee_pad.layer_id, is_smd),
             rotation: -ee_pad.rotation,
+            drill: if is_smd {
+                None
+            } else {
+                // EeFootprintPad.hole_radius is a radius in EasyEDA units; convert to diameter in mm
+                Some(ee_to_mm(ee_pad.hole_radius * 2.0))
+            },
         });
     }
 

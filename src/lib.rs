@@ -13,6 +13,7 @@ use crate::{
     kicad_models::{KiFootprint, KiSymbol},
 };
 use std::path::Path;
+use std::collections::HashMap;
 
 /// Imports a component from EasyEDA's library and converts it to KiCad format.
 ///
@@ -84,7 +85,41 @@ pub async fn import_component(lcsc_id: &str, output_dir: &Path) -> Result<()> {
 
     // --- FOOTPRINT ---
     // Pass the 3D model data to the footprint converter
-    let ki_footprint = converter::convert_footprint(ee_footprint, ki_model)?;
+    let mut ki_footprint = converter::convert_footprint(ee_footprint, ki_model)?;
+
+    // Harmonize pad numbers between the symbol and footprint.
+    // Some EasyEDA symbols use pin numbers like "P1" while footprints use "1".
+    // Try to rename footprint pads to match the symbol pins when they differ only by a leading 'P'.
+    let mut pad_index: HashMap<String, usize> = HashMap::new();
+    for (i, pad) in ki_footprint.pads.iter().enumerate() {
+        pad_index.insert(pad.number.clone(), i);
+    }
+
+    for pin in &ki_symbol.pins {
+        let pin_num = pin.number.trim().to_string();
+        if pad_index.contains_key(&pin_num) {
+            continue; // already matches
+        }
+
+        if pin_num.starts_with('P') {
+            let suffix = pin_num[1..].to_string();
+            if let Some(&idx) = pad_index.get(&suffix) {
+                // rename pad to match pin (e.g., "1" -> "P1")
+                ki_footprint.pads[idx].number = pin_num.clone();
+                pad_index.remove(&suffix);
+                pad_index.insert(pin_num.clone(), idx);
+            }
+        } else {
+            // pin is numeric, but pad might be "P<digit>"
+            let pref = format!("P{}", pin_num);
+            if let Some(&idx) = pad_index.get(&pref) {
+                ki_footprint.pads[idx].number = pin_num.clone();
+                pad_index.remove(&pref);
+                pad_index.insert(pin_num.clone(), idx);
+            }
+        }
+    }
+
     kicad_lib.add_footprint(&ki_footprint)?;
     println!("Successfully generated footprint: {}", ki_footprint.name);
 

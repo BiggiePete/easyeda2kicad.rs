@@ -33,7 +33,8 @@ pub struct FpPad {
     pub pos: (f32, f32),
     pub size: (f32, f32),
     pub layers: Vec<String>,
-    pub rotation: f32, // in degrees
+    pub rotation: f32,      // in degrees
+    pub drill: Option<f32>, // drill diameter in mm for thru_hole pads
 }
 
 #[derive(Debug)]
@@ -197,20 +198,39 @@ impl KiFootprint {
             };
             let layers_str = pad.layers.join(" ");
 
-            writeln!(
-                &mut out,
-                "  (pad {} {} {} (at {} {} {}) (size {} {}) (layers {}))",
-                pad.number,
-                pad.pad_type,
-                shape_str,
-                pad.pos.0,
-                pad.pos.1,
-                pad.rotation,
-                pad.size.0,
-                pad.size.1,
-                layers_str
-            )
-            .unwrap();
+            if let Some(drill_dia) = pad.drill {
+                // For thru-hole pads, include drill diameter
+                writeln!(
+                    &mut out,
+                    "  (pad {} {} {} (at {} {} {}) (size {} {}) (layers {})(drill {}))",
+                    pad.number, // Note: not wrapped in quotes, will be a plain number for proper footprint compatibility
+                    pad.pad_type,
+                    shape_str,
+                    pad.pos.0,
+                    pad.pos.1,
+                    pad.rotation,
+                    pad.size.0,
+                    pad.size.1,
+                    layers_str,
+                    drill_dia
+                )
+                .unwrap();
+            } else {
+                writeln!(
+                    &mut out,
+                    "  (pad {} {} {} (at {} {} {}) (size {} {}) (layers {}))",
+                    pad.number,
+                    pad.pad_type,
+                    shape_str,
+                    pad.pos.0,
+                    pad.pos.1,
+                    pad.rotation,
+                    pad.size.0,
+                    pad.size.1,
+                    layers_str
+                )
+                .unwrap();
+            }
         }
 
         writeln!(&mut out, ")").unwrap();
