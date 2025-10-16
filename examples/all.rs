@@ -15,13 +15,14 @@ async fn main() {
         "C5452091",
         "C209907",
         "C8270",
+        "C94355",
     ]; // Example LCSC IDs
 
     let start_time = Instant::now();
     for lcsc_id in &lcsc_ids {
         let entry_start_time = Instant::now();
         match import_component(lcsc_id, Path::new("example_lib")).await {
-            Ok(component) => println!("Imported component: {:?}", component),
+            Ok(_) => println!("Imported component: {:}", lcsc_id),
             Err(e) => eprintln!("Error importing component: {}", e),
         }
 
