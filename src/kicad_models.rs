@@ -176,12 +176,11 @@ impl KiFootprint {
         if let Some(model) = &self.model_3d {
             writeln!(
                 &mut out,
-                r#"  (model "${{KICAD6_3DMODEL_DIR}}/{}.3dshapes/{}.wrl"
+                r#"  (model "../3dmodels.3dshapes/{}.wrl"
     (offset (xyz {} {} {}))
     (scale (xyz {} {} {}))
     (rotate (xyz {} {} {}))
   )"#,
-                "your_lib_name", // Placeholder for your library name
                 model.name,
                 model.offset.x,
                 model.offset.y,
