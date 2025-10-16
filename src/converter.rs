@@ -255,8 +255,8 @@ pub fn convert_3d_model(mut ee_model: Ee3dModel) -> Result<Ki3dModel> {
                         let x: f32 = parts[1].parse().unwrap_or(0.0);
                         let y: f32 = parts[2].parse().unwrap_or(0.0);
                         let z: f32 = parts[3].parse().unwrap_or(0.0);
-                        // EasyEDA OBJ seems to be in inches*10. Convert to mm for KiCad.
-                        vertices.push(Vec3::new(x, y, z) * 2.54);
+                        // EasyEDA OBJ seems to be in inches*10. Convert to mm and scale down by 10
+                        vertices.push(Vec3::new(x, y, z) * 0.254);
                     }
                 }
                 "f" => {
