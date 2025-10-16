@@ -21,7 +21,7 @@ target/
 # Added by cargo
 
 /target
-
+/test_output
 
 example_lib
 test_kicad
