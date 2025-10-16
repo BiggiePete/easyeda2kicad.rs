@@ -1,3 +1,6 @@
+[![Rust](https://github.com/BiggiePete/easyeda2kicad.rs/actions/workflows/rust_test.yml/badge.svg)](https://github.com/BiggiePete/easyeda2kicad.rs/actions/workflows/rust_test.yml)
+
+
 # easyeda2kicad.rs
 
 **A Rust library for converting EasyEDA projects to KiCad formats**
