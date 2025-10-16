@@ -3,7 +3,9 @@
 use crate::{easyeda_models::*, error::Result, kicad_models::*};
 use glam::Vec3;
 
-/// Converts an EasyEDA symbol to a KiCad symbol. (Still a stub)
+/// Converts an EasyEDA symbol to a KiCad symbol.
+///
+/// Handles conversion of pins, rectangles and other symbol elements while maintaining correct positioning.
 pub fn convert_symbol(ee_symbol: EeSymbol) -> Result<KiSymbol> {
     let (bbox_x, bbox_y) = ee_symbol.bbox;
     let mut raw_pins = Vec::new();
@@ -85,12 +87,16 @@ pub fn convert_symbol(ee_symbol: EeSymbol) -> Result<KiSymbol> {
         reference: ee_symbol.info.prefix,
         footprint: ee_symbol.info.package.unwrap_or_default(),
         datasheet: ee_symbol.info.datasheet.unwrap_or_default(),
+        lcsc_part: ee_symbol.info.lcsc_id,
         pins: ki_pins,
         rectangles: ki_rects,
     })
 }
 
 /// Converts an EasyEDA footprint to a KiCad footprint. (Now implemented)
+/// Converts EasyEDA units to millimeters.
+///
+/// EasyEDA uses units that are 1/0.254 mm, this converts to standard millimeters.
 fn ee_to_mm(val: f32) -> f32 {
     val * 0.254
 }
@@ -123,6 +129,8 @@ fn map_layer(layer_id: i32, is_smd: bool) -> Vec<String> {
 }
 
 /// Maps EasyEDA pad shapes to KiCad pad shapes.
+///
+/// Converts string shape names from EasyEDA format to KiCad's FpShape enum.
 fn map_shape(shape: &str) -> FpShape {
     match shape {
         "ELLIPSE" => FpShape::Circle,
@@ -131,6 +139,9 @@ fn map_shape(shape: &str) -> FpShape {
         _ => FpShape::Rect, // Default fallback
     }
 }
+/// Maps EasyEDA pin types to KiCad pin types.
+///
+/// Converts EasyEDA's numeric pin type codes to KiCad's pin type enum.
 fn map_pin_type(ee_type: &str) -> KiPinType {
     match ee_type {
         "1" => KiPinType::Input,
@@ -141,6 +152,9 @@ fn map_pin_type(ee_type: &str) -> KiPinType {
     }
 }
 /// Converts an EasyEDA footprint to a KiCad footprint.
+///
+/// Handles conversion of pads, text elements, and 3D model references while maintaining
+/// correct positioning and scaling.
 pub fn convert_footprint(
     ee_footprint: EeFootprint,
     ki_model: Option<Ki3dModel>,
@@ -236,7 +250,10 @@ pub fn convert_footprint(
         model_3d: ki_model,
     })
 }
-/// Converts an EasyEDA 3D model (with raw OBJ data) to a KiCad 3D model (WRL).
+/// Converts an EasyEDA 3D model (with raw OBJ data) to a KiCad 3D model (VRML).
+///
+/// Converts vertices and faces from OBJ format to VRML format, applying appropriate scaling
+/// and maintaining all geometric information.
 pub fn convert_3d_model(mut ee_model: Ee3dModel) -> Result<Ki3dModel> {
     let wrl_data = if let Some(obj_data) = &ee_model.raw_obj {
         // --- Functional but simplified OBJ to WRL converter ---

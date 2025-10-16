@@ -5,6 +5,9 @@ use std::fmt::Write;
 
 // --- 3D Model Structs ---
 
+/// Represents a 3D model in KiCad format.
+///
+/// Contains both VRML and STEP format data along with placement information.
 #[derive(Debug, Clone)]
 pub struct Ki3dModel {
     pub name: String,
@@ -85,6 +88,7 @@ pub struct KiSymbol {
     pub reference: String,
     pub footprint: String,
     pub datasheet: String,
+    pub lcsc_part: Option<String>,
     pub pins: Vec<KiSymbolPin>,
     pub rectangles: Vec<KiSymbolRect>,
 }
@@ -109,6 +113,9 @@ impl KiSymbol {
         .unwrap();
         writeln!(&mut out, "  (property \"Footprint\" \"{}\" (id 2) (at 0 0 0) (effects (font (size 1.27 1.27)) hide))", self.footprint).unwrap();
         writeln!(&mut out, "  (property \"Datasheet\" \"{}\" (id 3) (at 0 0 0) (effects (font (size 1.27 1.27)) hide))", self.datasheet).unwrap();
+        if let Some(lcsc) = &self.lcsc_part {
+            writeln!(&mut out, "  (property \"LCSC Part\" \"{}\" (id 4) (at 0 0 0) (effects (font (size 1.27 1.27)) hide))", lcsc).unwrap();
+        }
 
         // --- Symbol Graphics ---
         writeln!(&mut out, "  (symbol \"{}_1_1\"", self.name).unwrap();
