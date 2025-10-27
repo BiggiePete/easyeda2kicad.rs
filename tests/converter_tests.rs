@@ -86,6 +86,7 @@ async fn test_symbol_conversion() {
             package: Some("0805".to_string()),
             datasheet: None,
             lcsc_id: Some("C1234".to_string()),
+            is_extended: false,
         },
         bbox: (0.0, 0.0),
         pins: vec![
