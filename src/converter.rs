@@ -90,6 +90,7 @@ pub fn convert_symbol(ee_symbol: EeSymbol) -> Result<KiSymbol> {
         lcsc_part: ee_symbol.info.lcsc_id,
         pins: ki_pins,
         rectangles: ki_rects,
+        is_extended: ee_symbol.info.is_extended,
     })
 }
 

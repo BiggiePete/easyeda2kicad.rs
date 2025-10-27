@@ -89,6 +89,7 @@ pub struct KiSymbol {
     pub footprint: String,
     pub datasheet: String,
     pub lcsc_part: Option<String>,
+    pub is_extended: bool,
     pub pins: Vec<KiSymbolPin>,
     pub rectangles: Vec<KiSymbolRect>,
 }
@@ -116,6 +117,7 @@ impl KiSymbol {
         if let Some(lcsc) = &self.lcsc_part {
             writeln!(&mut out, "  (property \"LCSC Part\" \"{}\" (id 4) (at 0 0 0) (effects (font (size 1.27 1.27)) hide))", lcsc).unwrap();
         }
+        writeln!(&mut out, "  (property \"Extended\" \"{}\" (id 5) (at 0 0 0) (effects (font (size 1.27 1.27)) hide))", self.is_extended).unwrap();
 
         // --- Symbol Graphics ---
         writeln!(&mut out, "  (symbol \"{}_1_1\"", self.name).unwrap();

@@ -18,6 +18,7 @@ pub struct EeSymbolInfo {
     pub package: Option<String>,
     pub datasheet: Option<String>,
     pub lcsc_id: Option<String>,
+    pub is_extended: bool,
 }
 
 #[derive(Debug, Clone)]

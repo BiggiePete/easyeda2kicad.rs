@@ -17,6 +17,9 @@ pub fn import_symbol(data: &Value) -> Result<EeSymbol> {
         package: c_para["package"].as_str().map(String::from),
         datasheet: data["lcsc"]["url"].as_str().map(String::from),
         lcsc_id: data["lcsc"]["number"].as_str().map(String::from),
+        is_extended: c_para["JLCPCB Part Class"]
+            .as_str()
+            .eq(&Some("Extended Part")),
     };
 
     let bbox_x = data_str["head"]["x"]
