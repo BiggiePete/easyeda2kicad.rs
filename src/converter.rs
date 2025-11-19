@@ -167,14 +167,14 @@ pub fn convert_footprint(
     for ee_pad in &ee_footprint.pads {
         raw_pad_pos.push((
             ee_to_mm(ee_pad.center_x - bbox_x),
-            ee_to_mm(-(ee_pad.center_y - bbox_y)),
+            ee_to_mm(ee_pad.center_y - bbox_y),
         ));
     }
     let mut raw_text_pos = Vec::new();
     for ee_text in &ee_footprint.texts {
         raw_text_pos.push((
             ee_to_mm(ee_text.center_x - bbox_x),
-            ee_to_mm(-(ee_text.center_y - bbox_y)),
+            ee_to_mm(ee_text.center_y - bbox_y),
         ));
     }
     // Calculate center
