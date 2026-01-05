@@ -86,7 +86,7 @@ dependencies = [
 
 [[package]]
 name = "easyeda2kicad-rs"
-version = "0.0.7"
+version = "1.0.0"
 dependencies = [
  "bytes",
  "glam",
