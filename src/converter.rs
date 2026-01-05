@@ -3,14 +3,29 @@
 use crate::{easyeda_models::*, error::Result, kicad_models::*};
 use glam::Vec3;
 
+/// Helper to snap coordinates to the standard KiCad schematic grid (50 mil / 1.27mm).
+/// This ensures wires can actually connect to the pins.
+fn snap_to_grid(val: f32) -> f32 {
+    let grid = 1.27; // 50 mils
+    (val / grid).round() * grid
+}
+
+/// Helper to snap pin lengths to standard KiCad sizes to look cleaner.
+fn snap_pin_length(val: f32) -> f32 {
+    // Standard KiCad pin is 2.54mm (100 mil), Short is 1.27mm (50 mil)
+    if val < 2.0 { 1.27 } else { 2.54 }
+}
+
 /// Converts an EasyEDA symbol to a KiCad symbol.
 ///
 /// Handles conversion of pins, rectangles and other symbol elements while maintaining correct positioning.
+/// NOW ALIGNS ALL PINS TO A 50mil (1.27mm) GRID.
 pub fn convert_symbol(ee_symbol: EeSymbol) -> Result<KiSymbol> {
     let (bbox_x, bbox_y) = ee_symbol.bbox;
     let mut raw_pins = Vec::new();
     let mut raw_rects = Vec::new();
 
+    // 1. Extract raw positions in MM
     for ee_pin in &ee_symbol.pins {
         raw_pins.push((
             ee_to_mm(ee_pin.pos_x - bbox_x),
@@ -25,11 +40,14 @@ pub fn convert_symbol(ee_symbol: EeSymbol) -> Result<KiSymbol> {
         raw_rects.push(((start_x, start_y), (end_x, end_y)));
     }
 
-    // Calculate bounding box
+    // 2. Calculate Center
     let mut min_x = f32::MAX;
     let mut max_x = f32::MIN;
     let mut min_y = f32::MAX;
     let mut max_y = f32::MIN;
+
+    // We calculate bounds primarily based on PINS to ensure pins are centered well.
+    // If we include graphics, a large text label might throw off the pin alignment.
     for &(x, y) in &raw_pins {
         if x < min_x {
             min_x = x;
@@ -44,41 +62,55 @@ pub fn convert_symbol(ee_symbol: EeSymbol) -> Result<KiSymbol> {
             max_y = y;
         }
     }
-    for &((sx, sy), (ex, ey)) in &raw_rects {
-        for &(x, y) in &[(sx, sy), (ex, ey)] {
-            if x < min_x {
-                min_x = x;
-            }
-            if x > max_x {
-                max_x = x;
-            }
-            if y < min_y {
-                min_y = y;
-            }
-            if y > max_y {
-                max_y = y;
+
+    // Fallback if no pins exist (graphical symbol)
+    if raw_pins.is_empty() {
+        for &((sx, sy), (ex, ey)) in &raw_rects {
+            for &(x, y) in &[(sx, sy), (ex, ey)] {
+                if x < min_x {
+                    min_x = x;
+                }
+                if x > max_x {
+                    max_x = x;
+                }
+                if y < min_y {
+                    min_y = y;
+                }
+                if y > max_y {
+                    max_y = y;
+                }
             }
         }
     }
-    let center_x = (min_x + max_x) / 2.0;
-    let center_y = (min_y + max_y) / 2.0;
 
+    // We snap the center calculation itself to the grid to avoid sub-grid offsets
+    let center_x = snap_to_grid((min_x + max_x) / 2.0);
+    let center_y = snap_to_grid((min_y + max_y) / 2.0);
+
+    // 3. Create KiCad Pins (Snapped to 50 mil / 1.27mm grid)
     let mut ki_pins = Vec::new();
     for (ee_pin, &(x, y)) in ee_symbol.pins.iter().zip(raw_pins.iter()) {
+        // This math solves the "Half Grid" issue.
+        // Even if the pin was at 0.635mm relative to center, this rounds it to 1.27mm.
+        let snapped_x = snap_to_grid(x - center_x);
+        let snapped_y = snap_to_grid(y - center_y);
+
         ki_pins.push(KiSymbolPin {
             name: ee_pin.name.clone(),
             number: ee_pin.number.clone(),
             pin_type: map_pin_type(&ee_pin.pin_type),
-            length: ee_to_mm(ee_pin.pin_length),
-            pos: (x - center_x, y - center_y),
+            length: snap_pin_length(ee_to_mm(ee_pin.pin_length)), // Also snap length
+            pos: (snapped_x, snapped_y),
             rotation: (ee_pin.rotation + 180) % 360,
         });
     }
+
+    // 4. Create KiCad Rectangles (Also snapped to prevent detachment)
     let mut ki_rects = Vec::new();
     for (ee_rect, &((sx, sy), (ex, ey))) in ee_symbol.rectangles.iter().zip(raw_rects.iter()) {
         ki_rects.push(KiSymbolRect {
-            start: (sx - center_x, sy - center_y),
-            end: (ex - center_x, ey - center_y),
+            start: (snap_to_grid(sx - center_x), snap_to_grid(sy - center_y)),
+            end: (snap_to_grid(ex - center_x), snap_to_grid(ey - center_y)),
         });
     }
 
