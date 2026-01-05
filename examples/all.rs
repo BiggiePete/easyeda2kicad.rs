@@ -20,6 +20,7 @@ async fn main() {
         "C1002",
         "C3012622",
         "C3001531",
+        "C128958",  // part with complex silk screen
         "C2939557", // part with Oval holes
     ]; // Example LCSC IDs
 
