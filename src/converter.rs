@@ -355,6 +355,62 @@ pub fn convert_footprint(
         });
     }
 
+    // automatic marker for Pin1
+    let pin1 = ki_pads
+        .iter()
+        .find(|p| p.number == "1")
+        .or_else(|| ki_pads.iter().find(|p| p.number == "A1"));
+
+    if let Some(p1) = pin1 {
+        // Properties
+        let marker_radius = 0.25; // mm
+        let gap = 0.5; // mm clearance from the pad edge
+
+        let (px, py) = p1.pos;
+        let (sx, sy) = p1.size;
+
+        // Determine direction to push the marker relative to the component center (0,0).
+        // If px is negative (left side), push further left (-1.0).
+        // If px is positive (right side), push further right (1.0).
+        // Use a small epsilon to handle pads exactly on the centerline.
+        let dir_x = if px < -0.01 {
+            -1.0
+        } else if px > 0.01 {
+            1.0
+        } else {
+            -1.0
+        }; // Default left for center vertical
+        let dir_y = if py < -0.01 {
+            -1.0
+        } else if py > 0.01 {
+            1.0
+        } else {
+            -1.0
+        }; // Default top for center horizontal
+
+        // Calculate position: Pad Center + (Half Size + Gap) * Direction
+        // We use the larger dimension of the pad to ensure we clear it regardless of rotation
+        let clearance_x = (sx / 2.0) + gap;
+        let clearance_y = (sy / 2.0) + gap;
+
+        // Place the dot.
+        // We prioritize placing it along the longest axis of distance from center to corners
+        // to put it nicely in the corner of the IC.
+        let dot_x = px + (clearance_x * dir_x);
+        let dot_y = py + (clearance_y * dir_y);
+
+        ki_graphics.push(FpGraphic {
+            layer: "F.SilkS".to_string(),
+            width: 0.15, // Thickness of the circle line
+            graphic_type: FpGraphicType::Circle {
+                center: (dot_x, dot_y),
+                // KiCad circle is defined by Center + Point on Edge.
+                // We add the radius to X to define that edge point.
+                end: (dot_x + marker_radius, dot_y),
+            },
+        });
+    }
+
     Ok(KiFootprint {
         name: ee_footprint.info.name,
         pads: ki_pads,
