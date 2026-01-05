@@ -155,7 +155,7 @@ fn map_pin_type(ee_type: &str) -> KiPinType {
 /// Converts an EasyEDA footprint to a KiCad footprint.
 ///
 /// Handles conversion of pads, text elements, and 3D model references while maintaining
-/// correct positioning and scaling.
+/// correct positioning and scaling. Now supports oval/slot holes.
 pub fn convert_footprint(
     ee_footprint: EeFootprint,
     ki_model: Option<Ki3dModel>,
@@ -195,13 +195,30 @@ pub fn convert_footprint(
     let center_y = if count > 0.0 { sum_y / count } else { 0.0 };
 
     for (idx, (ee_pad, &(x, y))) in ee_footprint.pads.iter().zip(raw_pad_pos.iter()).enumerate() {
-        let is_smd = ee_pad.hole_radius == 0.0;
+        let is_smd = ee_pad.hole_radius == 0.0 && ee_pad.hole_length == 0.0;
+
         // Use provided number, but fallback to a deterministic index-based number if empty
         let pad_number = if ee_pad.number.trim().is_empty() {
             (idx + 1).to_string()
         } else {
             ee_pad.number.clone()
         };
+
+        // Determine drill type and size
+        let (drill, drill_oval) = if is_smd {
+            (None, None)
+        } else if ee_pad.hole_length > 0.0 {
+            // Oval/slot hole
+            // hole_radius is the width, hole_length is the length
+            let drill_width = ee_to_mm(ee_pad.hole_radius * 2.0);
+            let drill_height = ee_to_mm(ee_pad.hole_length);
+            (None, Some((drill_width, drill_height)))
+        } else {
+            // Circular hole
+            let drill_dia = ee_to_mm(ee_pad.hole_radius * 2.0);
+            (Some(drill_dia), None)
+        };
+
         ki_pads.push(FpPad {
             number: pad_number,
             pad_type: if is_smd {
@@ -214,12 +231,8 @@ pub fn convert_footprint(
             size: (ee_to_mm(ee_pad.width), ee_to_mm(ee_pad.height)),
             layers: map_layer(ee_pad.layer_id, is_smd),
             rotation: -ee_pad.rotation,
-            drill: if is_smd {
-                None
-            } else {
-                // EeFootprintPad.hole_radius is a radius in EasyEDA units; convert to diameter in mm
-                Some(ee_to_mm(ee_pad.hole_radius * 2.0))
-            },
+            drill,
+            drill_oval,
         });
     }
 

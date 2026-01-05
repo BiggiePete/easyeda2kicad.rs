@@ -36,8 +36,9 @@ pub struct FpPad {
     pub pos: (f32, f32),
     pub size: (f32, f32),
     pub layers: Vec<String>,
-    pub rotation: f32,      // in degrees
-    pub drill: Option<f32>, // drill diameter in mm for thru_hole pads
+    pub rotation: f32,                  // in degrees
+    pub drill: Option<f32>,             // drill diameter in mm for circular holes
+    pub drill_oval: Option<(f32, f32)>, // (width, height) for oval/slot holes
 }
 
 #[derive(Debug)]
@@ -206,12 +207,30 @@ impl KiFootprint {
             };
             let layers_str = pad.layers.join(" ");
 
-            if let Some(drill_dia) = pad.drill {
-                // For thru-hole pads, include drill diameter
+            if let Some((width, height)) = pad.drill_oval {
+                // Oval/slot hole
                 writeln!(
                     &mut out,
-                    "  (pad {} {} {} (at {} {} {}) (size {} {}) (layers {})(drill {}))",
-                    pad.number, // Note: not wrapped in quotes, will be a plain number for proper footprint compatibility
+                    "  (pad {} {} {} (at {} {} {}) (size {} {}) (layers {}) (drill oval {} {}))",
+                    pad.number,
+                    pad.pad_type,
+                    shape_str,
+                    pad.pos.0,
+                    pad.pos.1,
+                    pad.rotation,
+                    pad.size.0,
+                    pad.size.1,
+                    layers_str,
+                    width,
+                    height
+                )
+                .unwrap();
+            } else if let Some(drill_dia) = pad.drill {
+                // Circular hole
+                writeln!(
+                    &mut out,
+                    "  (pad {} {} {} (at {} {} {}) (size {} {}) (layers {}) (drill {}))",
+                    pad.number,
                     pad.pad_type,
                     shape_str,
                     pad.pos.0,
@@ -224,6 +243,7 @@ impl KiFootprint {
                 )
                 .unwrap();
             } else {
+                // SMD pad (no drill)
                 writeln!(
                     &mut out,
                     "  (pad {} {} {} (at {} {} {}) (size {} {}) (layers {}))",

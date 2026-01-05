@@ -56,6 +56,7 @@ pub struct EeFootprintPad {
     pub layer_id: i32,
     pub number: String,
     pub hole_radius: f32,
+    pub hole_length: f32, // Added for oval/slot holes
     pub rotation: f32,
 }
 

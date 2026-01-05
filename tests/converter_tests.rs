@@ -51,6 +51,7 @@ async fn test_footprint_conversion() {
             number: "1".to_string(),
             hole_radius: 0.0,
             rotation: 0.0,
+            hole_length: 0.0,
         }],
         tracks: vec![],
         texts: vec![],

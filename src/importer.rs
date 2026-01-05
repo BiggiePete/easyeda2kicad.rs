@@ -186,7 +186,30 @@ pub fn import_footprint(data: &Value) -> Result<EeFootprint> {
 
         match fields[0] {
             "PAD" => {
+                // PAD format from EasyEDA:
+                // [0]PAD [1]shape [2]x [3]y [4]width [5]height [6]layer [7]net [8]number
+                // [9]hole_radius [10]points [11]rotation [12]id [13]hole_length ...
                 if fields.len() > 11 {
+                    let hole_radius = fields[9].parse().unwrap_or(0.0);
+
+                    // FIX: Check field 13 first.
+                    // In modern EasyEDA, field 12 is the ID (UUID), and field 13 is the hole length.
+                    let mut hole_length = if fields.len() > 13 {
+                        fields[13].parse::<f32>().unwrap_or(0.0)
+                    } else {
+                        0.0
+                    };
+
+                    // Fallback for very old formats where field 12 might have been the length.
+                    // (If field 12 is a UUID, parse fails and returns 0.0, so this is safe)
+                    if hole_length == 0.0 && fields.len() > 12 {
+                        let val = fields[12].parse::<f32>().unwrap_or(0.0);
+                        // Only accept it if it looks like a length (not an ID)
+                        if val > 0.0 {
+                            hole_length = val;
+                        }
+                    }
+
                     pads.push(EeFootprintPad {
                         shape: fields[1].to_string(),
                         center_x: fields[2].parse().unwrap_or(0.0),
@@ -195,7 +218,8 @@ pub fn import_footprint(data: &Value) -> Result<EeFootprint> {
                         height: fields[5].parse().unwrap_or(0.0),
                         layer_id: fields[6].parse().unwrap_or(0),
                         number: fields[8].to_string(),
-                        hole_radius: fields[9].parse().unwrap_or(0.0),
+                        hole_radius,
+                        hole_length, // This will now be populated correctly
                         rotation: fields[11].parse().unwrap_or(0.0),
                     });
                 }
