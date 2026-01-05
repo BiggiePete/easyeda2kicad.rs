@@ -173,6 +173,9 @@ pub fn import_footprint(data: &Value) -> Result<EeFootprint> {
     let mut tracks = Vec::new();
     let mut texts = Vec::new();
 
+    let mut circles = Vec::new();
+    let mut arcs = Vec::new();
+
     let shapes = data_str["shape"]
         .as_array()
         .ok_or_else(|| Error::MissingData("Footprint shape data is missing".to_string()))?;
@@ -254,7 +257,30 @@ pub fn import_footprint(data: &Value) -> Result<EeFootprint> {
                     });
                 }
             }
-            _ => { /* Silently ignore unsupported shapes for now */ }
+            "CIRCLE" => {
+                // Format: CIRCLE~layer~width~cx~cy~radius~id
+                if fields.len() > 5 {
+                    circles.push(EeFootprintCircle {
+                        layer_id: fields[1].parse().unwrap_or(0),
+                        stroke_width: fields[2].parse().unwrap_or(0.1),
+                        center_x: fields[3].parse().unwrap_or(0.0),
+                        center_y: fields[4].parse().unwrap_or(0.0),
+                        radius: fields[5].parse().unwrap_or(0.0),
+                    });
+                }
+            }
+            // Add ARC Parsing
+            "ARC" => {
+                // Format: ARC~layer~width~pathString~id
+                if fields.len() > 3 {
+                    arcs.push(EeFootprintArc {
+                        layer_id: fields[1].parse().unwrap_or(0),
+                        stroke_width: fields[2].parse().unwrap_or(0.1),
+                        path: fields[3].to_string(),
+                    });
+                }
+            }
+            _ => { /* Silently ignore unsupported shapes */ }
         }
     }
 
@@ -264,5 +290,7 @@ pub fn import_footprint(data: &Value) -> Result<EeFootprint> {
         pads,
         tracks,
         texts,
+        circles, // Add to struct
+        arcs,    // Add to struct
     })
 }

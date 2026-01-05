@@ -29,12 +29,30 @@ pub struct EeFootprint {
     pub tracks: Vec<EeFootprintTrack>,
     pub texts: Vec<EeFootprintText>,
     // Add other primitives here as needed (circles, arcs, etc.)
+    pub circles: Vec<EeFootprintCircle>,
+    pub arcs: Vec<EeFootprintArc>,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct EeFootprintInfo {
     pub name: String,
     // ... other info fields
+}
+
+#[derive(Debug, Clone)]
+pub struct EeFootprintCircle {
+    pub center_x: f32,
+    pub center_y: f32,
+    pub radius: f32,
+    pub stroke_width: f32,
+    pub layer_id: i32,
+}
+
+#[derive(Debug, Clone)]
+pub struct EeFootprintArc {
+    pub path: String, // EasyEDA stores arcs as SVG path strings
+    pub stroke_width: f32,
+    pub layer_id: i32,
 }
 
 #[derive(Debug, Clone)]

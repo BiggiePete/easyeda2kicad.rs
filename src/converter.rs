@@ -161,6 +161,7 @@ pub fn convert_footprint(
     ki_model: Option<Ki3dModel>,
 ) -> Result<KiFootprint> {
     let mut ki_pads = Vec::new();
+    let mut ki_graphics = Vec::new();
     let (bbox_x, bbox_y) = ee_footprint.bbox;
 
     let mut raw_pad_pos = Vec::new();
@@ -177,7 +178,8 @@ pub fn convert_footprint(
             ee_to_mm(ee_text.center_y - bbox_y),
         ));
     }
-    // Calculate center
+
+    // Calculate centroid (center of the component) based on pads
     let mut sum_x = 0.0;
     let mut sum_y = 0.0;
     let mut count = 0.0;
@@ -186,35 +188,34 @@ pub fn convert_footprint(
         sum_y += y;
         count += 1.0;
     }
-    for &(x, y) in &raw_text_pos {
-        sum_x += x;
-        sum_y += y;
-        count += 1.0;
+    // Fallback to text position if no pads exist (e.g. logo, fiducial)
+    if count == 0.0 {
+        for &(x, y) in &raw_text_pos {
+            sum_x += x;
+            sum_y += y;
+            count += 1.0;
+        }
     }
+
     let center_x = if count > 0.0 { sum_x / count } else { 0.0 };
     let center_y = if count > 0.0 { sum_y / count } else { 0.0 };
 
+    // --- PADS ---
     for (idx, (ee_pad, &(x, y))) in ee_footprint.pads.iter().zip(raw_pad_pos.iter()).enumerate() {
         let is_smd = ee_pad.hole_radius == 0.0 && ee_pad.hole_length == 0.0;
-
-        // Use provided number, but fallback to a deterministic index-based number if empty
         let pad_number = if ee_pad.number.trim().is_empty() {
             (idx + 1).to_string()
         } else {
             ee_pad.number.clone()
         };
 
-        // Determine drill type and size
         let (drill, drill_oval) = if is_smd {
             (None, None)
         } else if ee_pad.hole_length > 0.0 {
-            // Oval/slot hole
-            // hole_radius is the width, hole_length is the length
             let drill_width = ee_to_mm(ee_pad.hole_radius * 2.0);
             let drill_height = ee_to_mm(ee_pad.hole_length);
             (None, Some((drill_width, drill_height)))
         } else {
-            // Circular hole
             let drill_dia = ee_to_mm(ee_pad.hole_radius * 2.0);
             (Some(drill_dia), None)
         };
@@ -236,9 +237,94 @@ pub fn convert_footprint(
         });
     }
 
-    // NOTE: Tracks are not yet converted to pads, just stored. A full implementation would create KiLines.
-    // For now we will ignore them, but the parsing is done.
+    // --- TRACKS (Lines/Polygons) ---
+    // This provides the body outline on silkscreen/fab layers
+    for track in &ee_footprint.tracks {
+        let layers = map_layer(track.layer_id, true);
+        let layer_name = &layers[0];
 
+        // Skip copper tracks (Layer 1/2) unless you specifically want net ties.
+        // Usually footprint graphics are on Silk(3/4), Fab(13), or Doc(15).
+        let is_graphic_layer = layer_name.contains("Silk")
+            || layer_name.contains("Fab")
+            || layer_name.contains("Dwgs");
+
+        if is_graphic_layer && track.points.len() >= 2 {
+            let width = ee_to_mm(track.stroke_width);
+
+            for i in 0..track.points.len() - 1 {
+                let (x1, y1) = track.points[i];
+                let (x2, y2) = track.points[i + 1];
+
+                let start_x = ee_to_mm(x1 - bbox_x) - center_x;
+                let start_y = ee_to_mm(y1 - bbox_y) - center_y;
+                let end_x = ee_to_mm(x2 - bbox_x) - center_x;
+                let end_y = ee_to_mm(y2 - bbox_y) - center_y;
+
+                // SANITY CHECK: Distance
+                // If a line is > 150mm away from the center, it's garbage (e.g. frame border).
+                if start_x.abs() > 150.0 || start_y.abs() > 150.0 {
+                    continue;
+                }
+
+                ki_graphics.push(FpGraphic {
+                    layer: layer_name.clone(),
+                    width,
+                    graphic_type: FpGraphicType::Line {
+                        start: (start_x, start_y),
+                        end: (end_x, end_y),
+                    },
+                });
+            }
+        }
+    }
+
+    // --- CIRCLES ---
+    for circle in &ee_footprint.circles {
+        // FILTER: Ignore circles on Fab/Doc layers (13, 15).
+        // EasyEDA often puts "Pick and Place Origin" or "Collision Radii" here which are massive.
+        // We only want Silkscreen (3, 4) or Copper (1, 2).
+        if circle.layer_id != 1
+            && circle.layer_id != 2
+            && circle.layer_id != 3
+            && circle.layer_id != 4
+        {
+            continue;
+        }
+
+        let layers = map_layer(circle.layer_id, true);
+        let layer_name = &layers[0];
+
+        let cx = ee_to_mm(circle.center_x - bbox_x) - center_x;
+        let cy = ee_to_mm(circle.center_y - bbox_y) - center_y;
+        let radius = ee_to_mm(circle.radius);
+
+        // SANITY CHECK: Distance
+        // If the circle center is miles away, drop it.
+        if cx.abs() > 150.0 || cy.abs() > 150.0 {
+            continue;
+        }
+
+        // SANITY CHECK: Size
+        // If the circle is massive (>50mm radius), it's likely a collision courtyard, not a graphic.
+        if radius > 50.0 {
+            continue;
+        }
+
+        let end_x = cx + radius;
+        let end_y = cy;
+
+        ki_graphics.push(FpGraphic {
+            layer: layer_name.clone(),
+            width: ee_to_mm(circle.stroke_width),
+            graphic_type: FpGraphicType::Circle {
+                center: (cx, cy),
+                end: (end_x, end_y),
+            },
+        });
+    }
+
+    // --- TEXTS ---
     let mut ki_texts = Vec::new();
     for (ee_text, &(x, y)) in ee_footprint.texts.iter().zip(raw_text_pos.iter()) {
         let (text_type, text) = match ee_text.text_type.as_str() {
@@ -246,14 +332,26 @@ pub fn convert_footprint(
             "N" => ("reference".to_string(), "REF**".to_string()),
             _ => ("user".to_string(), ee_text.text.clone()),
         };
+
+        // Standardize layers for text
+        let mut layer = map_layer(ee_text.layer_id, true)
+            .get(0)
+            .unwrap_or(&"F.Fab".to_string())
+            .clone();
+
+        // Ensure Reference and Value are on reasonable layers
+        if text_type == "reference" {
+            layer = "F.SilkS".to_string();
+        }
+        if text_type == "value" {
+            layer = "F.Fab".to_string();
+        }
+
         ki_texts.push(FpText {
             text_type,
             text,
             pos: (x - center_x, y - center_y),
-            layer: map_layer(ee_text.layer_id, true)
-                .get(0)
-                .unwrap_or(&"F.Fab".to_string())
-                .clone(),
+            layer,
         });
     }
 
@@ -261,9 +359,11 @@ pub fn convert_footprint(
         name: ee_footprint.info.name,
         pads: ki_pads,
         texts: ki_texts,
+        graphics: ki_graphics,
         model_3d: ki_model,
     })
 }
+
 /// Converts an EasyEDA 3D model (with raw OBJ data) to a KiCad 3D model (VRML).
 ///
 /// Converts vertices and faces from OBJ format to VRML format, applying appropriate scaling

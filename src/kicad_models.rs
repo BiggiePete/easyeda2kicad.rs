@@ -50,10 +50,35 @@ pub struct FpText {
 }
 
 #[derive(Debug)]
+pub enum FpGraphicType {
+    Line {
+        start: (f32, f32),
+        end: (f32, f32),
+    },
+    Circle {
+        center: (f32, f32),
+        end: (f32, f32),
+    }, // KiCad defines circle by Center + Point on edge
+    Arc {
+        start: (f32, f32),
+        mid: (f32, f32),
+        end: (f32, f32),
+    },
+}
+
+#[derive(Debug)]
+pub struct FpGraphic {
+    pub graphic_type: FpGraphicType,
+    pub layer: String,
+    pub width: f32,
+}
+
+#[derive(Debug)]
 pub struct KiFootprint {
     pub name: String,
     pub pads: Vec<FpPad>,
     pub texts: Vec<FpText>,
+    pub graphics: Vec<FpGraphic>,
     pub model_3d: Option<Ki3dModel>,
 }
 
@@ -173,6 +198,32 @@ impl KiFootprint {
                 "  (fp_text {} {} (at {} {}) (layer {}) (effects (font (size 1 1) (thickness 0.15))))",
                 text.text_type, text.text, text.pos.0, text.pos.1, text.layer
             ).unwrap();
+        }
+
+        for graphic in &self.graphics {
+            match &graphic.graphic_type {
+                FpGraphicType::Line { start, end } => {
+                    writeln!(
+                        &mut out,
+                        "  (fp_line (start {} {}) (end {} {}) (stroke (width {}) (type solid)) (layer {}))",
+                        start.0, start.1, end.0, end.1, graphic.width, graphic.layer
+                    ).unwrap();
+                }
+                FpGraphicType::Circle { center, end } => {
+                    writeln!(
+                        &mut out,
+                        "  (fp_circle (center {} {}) (end {} {}) (stroke (width {}) (type solid)) (layer {}))",
+                        center.0, center.1, end.0, end.1, graphic.width, graphic.layer
+                    ).unwrap();
+                }
+                FpGraphicType::Arc { start, mid, end } => {
+                    writeln!(
+                        &mut out,
+                        "  (fp_arc (start {} {}) (mid {} {}) (end {} {}) (stroke (width {}) (type solid)) (layer {}))",
+                        start.0, start.1, mid.0, mid.1, end.0, end.1, graphic.width, graphic.layer
+                    ).unwrap();
+                }
+            }
         }
 
         // Add 3D model path

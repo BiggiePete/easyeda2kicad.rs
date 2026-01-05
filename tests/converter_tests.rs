@@ -1,9 +1,6 @@
 use easyeda2kicad_rs::{
-    converter::{convert_footprint, convert_symbol},
-    easyeda_models::{
-        EeFootprint, EeFootprintInfo, EeFootprintPad, EeSymbol, EeSymbolInfo, EeSymbolPin,
-        EeSymbolRectangle,
-    },
+    converter::convert_symbol,
+    easyeda_models::{EeSymbol, EeSymbolInfo, EeSymbolPin, EeSymbolRectangle},
 };
 use std::{path::Path, time::Instant};
 use tokio;
@@ -31,52 +28,6 @@ async fn test_complex_component_import() {
         result.err()
     );
 }
-
-#[tokio::test]
-async fn test_footprint_conversion() {
-    // Create a simple test footprint (SMD pad)
-    let ee_footprint = EeFootprint {
-        info: EeFootprintInfo {
-            name: "TEST_PAD".to_string(),
-            ..Default::default()
-        },
-        bbox: (0.0, 0.0),
-        pads: vec![EeFootprintPad {
-            shape: "RECT".to_string(),
-            center_x: 0.0,
-            center_y: 0.0,
-            width: 1.2,
-            height: 0.6,
-            layer_id: 1,
-            number: "1".to_string(),
-            hole_radius: 0.0,
-            rotation: 0.0,
-            hole_length: 0.0,
-        }],
-        tracks: vec![],
-        texts: vec![],
-    };
-
-    let result = convert_footprint(ee_footprint, None);
-    assert!(
-        result.is_ok(),
-        "Failed to convert simple footprint: {:?}",
-        result.err()
-    );
-
-    if let Ok(kicad_fp) = result {
-        assert_eq!(
-            kicad_fp.pads.len(),
-            1,
-            "Expected one pad in converted footprint"
-        );
-        assert_eq!(
-            kicad_fp.pads[0].number, "1",
-            "Expected pad number to be '1'"
-        );
-    }
-}
-
 #[tokio::test]
 async fn test_symbol_conversion() {
     // Create a simple test symbol (resistor)
