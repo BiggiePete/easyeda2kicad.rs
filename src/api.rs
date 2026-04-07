@@ -5,8 +5,8 @@ use serde_json::Value;
 const API_ENDPOINT: &str = "https://easyeda.com/api/products/{lcsc_id}/components?version=6.4.19.5";
 const ENDPOINT_3D_MODEL: &str = "https://modules.easyeda.com/3dmodel/{uuid}";
 const ENDPOINT_3D_MODEL_STEP: &str = "https://modules.easyeda.com/qAxj6KHrDKw4blvCG8QJPs7Y/{uuid}";
-const USER_AGENT: &str = concat!("easyeda2kicad_rs/", env!("CARGO_PKG_VERSION"));
-
+// const USER_AGENT: &str = concat!("easyeda2kicad_rs/", env!("CARGO_PKG_VERSION"));
+const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 #[derive(Deserialize, Debug)]
 pub struct ApiResponse {
     pub success: bool,
