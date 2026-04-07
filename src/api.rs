@@ -34,6 +34,8 @@ impl EasyedaApi {
         let res = self
             .client
             .get(&url)
+            .header("Referer", "https://easyeda.com/")
+            .header("Origin", "https://easyeda.com")
             .send()
             .await?
             .json::<ApiResponse>()
