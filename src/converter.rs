@@ -107,7 +107,7 @@ pub fn convert_symbol(ee_symbol: EeSymbol) -> Result<KiSymbol> {
 
     // 4. Create KiCad Rectangles (Also snapped to prevent detachment)
     let mut ki_rects = Vec::new();
-    for (ee_rect, &((sx, sy), (ex, ey))) in ee_symbol.rectangles.iter().zip(raw_rects.iter()) {
+    for (_, &((sx, sy), (ex, ey))) in ee_symbol.rectangles.iter().zip(raw_rects.iter()) {
         ki_rects.push(KiSymbolRect {
             start: (snap_to_grid(sx - center_x), snap_to_grid(sy - center_y)),
             end: (snap_to_grid(ex - center_x), snap_to_grid(ey - center_y)),
